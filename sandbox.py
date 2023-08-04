@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import torch
+import torch.nn.functional as F
 from torchvision import transforms
 from mnist import Net
 import warnings
@@ -46,6 +46,42 @@ for i in range(img.shape[0]):
 # inference
 img = image_processing(img)
 img = img.unsqueeze(0)
-output = model(img)
-output = postprocess(output)
-print(output)
+out = model.conv1(img)
+out = F.relu(out)
+out = model.conv2(out)
+for p in out.reshape(-1)[:100].tolist():
+    print(p)
+# print(out.shape)
+print(model.conv2.weight.shape)
+# print(model.conv1.weight.shape)
+
+
+
+# output = model(img)
+# output = postprocess(output)
+# print(output)
+
+# if __name__ == '__main__':
+#     x = torch.ones(1,1,28,28)
+#     weight = torch.rand(1, 1, 3, 3)
+#     bias = torch.rand(1)
+#     conv1 = nn.Conv2d(1, 1, kernel_size=3, stride=1)
+#     conv1.weight.data = weight
+#     conv1.bias.data = bias
+#     y1 = conv1(x)
+#     print(y1.shape)
+
+#     # convolve in raw python
+#     x = x.squeeze(0).squeeze(0)
+#     y2 = torch.zeros(26, 26)
+#     for i in range(26):
+#         for j in range(26):
+#             print(x[i:i+3, j:j+3])
+#             print(weight)
+#             print((x[i:i+3, j:j+3] * weight))
+#             exit()
+#             y2[i][j] = (x[i:i+3, j:j+3] * weight).sum() + bias
+#     y2.unsqueeze(0).unsqueeze(0)
+
+#     # check if close
+#     print(torch.allclose(y1, y2))

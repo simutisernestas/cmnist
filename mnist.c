@@ -82,6 +82,28 @@ void read_in_bin_file(const char *file_name, float *data, int size)
     fclose(fp);
 }
 
+void save_buffer_to_bin_file(const char *file_name, float *data, int size)
+{
+    FILE *fp = fopen(file_name, "wb");
+    if (!fp)
+    {
+        fprintf(stderr, "Error: Couldn't open the bin file: %s\n", file_name);
+        return;
+    }
+
+    fwrite(data, sizeof(int), size, fp);
+    fclose(fp);
+}
+
+void relu(float *data, int size)
+{
+    for (size_t i = 0; i < size; i++)
+    {
+        if (data[i] < 0)
+            data[i] = 0;
+    }
+}
+
 int main()
 {
     const char *file_name = "data/0.png";
@@ -103,21 +125,126 @@ int main()
     }
 
     // self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1)
-    int conv1_wn = 32*3*3;
+    int conv1_wn = 32 * 3 * 3;
     int conv1_bn = 32;
     float *conv1_weights = (float *)malloc(sizeof(float) * conv1_wn);
     float *conv1_bias = (float *)malloc(sizeof(float) * conv1_bn);
     read_in_bin_file("data/binm/conv1.bin", conv1_weights, conv1_wn);
+    read_in_bin_file("data/binm/conv1_bias.bin", conv1_bias, conv1_bn);
     // for (size_t i = 0; i < conv1_wn; i++)
     //     printf("%f\n", conv1_weights[i]);
 
     // self.conv2 = nn.Conv2d(32, 64, 3, 1)
-    // self.dropout1 = nn.Dropout2d(0.25)
-    // self.dropout2 = nn.Dropout2d(0.5)
+    int conv2_wn = 32 * 64 * 3 * 3;
+    int conv2_bn = 64;
+    float *conv2_weights = (float *)malloc(sizeof(float) * conv2_wn);
+    float *conv2_bias = (float *)malloc(sizeof(float) * conv2_bn);
+    read_in_bin_file("data/binm/conv2.bin", conv2_weights, conv2_wn);
+    read_in_bin_file("data/binm/conv2_bias.bin", conv2_bias, conv2_bn);
+
     // self.fc1 = nn.Linear(9216, 128)
+    int fc1_wn = 9216 * 128;
+    int fc1_bn = 128;
+    float *fc1_weights = (float *)malloc(sizeof(float) * fc1_wn);
+    float *fc1_bias = (float *)malloc(sizeof(float) * fc1_bn);
+    read_in_bin_file("data/binm/fc1.bin", fc1_weights, fc1_wn);
+    read_in_bin_file("data/binm/fc1_bias.bin", fc1_bias, fc1_bn);
+
     // self.fc2 = nn.Linear(128, 10)
-    
+    int fc2_wn = 128 * 10;
+    int fc2_bn = 10;
+    float *fc2_weights = (float *)malloc(sizeof(float) * fc2_wn);
+    float *fc2_bias = (float *)malloc(sizeof(float) * fc2_bn);
+    read_in_bin_file("data/binm/fc2.bin", fc2_weights, fc2_wn);
+    read_in_bin_file("data/binm/fc2_bias.bin", fc2_bias, fc2_bn);
+
+    // apply conv1 to image_data
+    int conv1_out_size = (height - 3 + 1) * (width - 3 + 1) * 32;
+    float *conv1_out = (float *)malloc(sizeof(float) * conv1_out_size);
+    for (int i = 0; i < conv1_out_size; i++)
+        conv1_out[i] = 0.0f;
+    for (int i = 0; i < 32; i++)
+    { // conv1 out channel
+        float *filter_weights = conv1_weights + (i * 3 * 3);
+        for (int j = 0; j < height - 3 + 1; j++)
+        { // conv1 out height
+            for (int k = 0; k < width - 3 + 1; k++)
+            { // conv1 out width
+                float *conv1_out_data = &(conv1_out[i * (height - 3 + 1) * (width - 3 + 1) +
+                                                    j * (width - 3 + 1) + k]);
+                for (int m = 0; m < 3; m++)
+                { // conv1 in height
+                    for (int n = 0; n < 3; n++)
+                    { // conv1 in width
+                        *conv1_out_data +=
+                            (((float)image_data[j + m][k + n] / 255 - 0.1307) / 0.3081) * filter_weights[m * 3 + n];
+                    }
+                }
+                *conv1_out_data += conv1_bias[i];
+            }
+        }
+    }
+
+    save_buffer_to_bin_file("log/conv1_out.bin", conv1_out, conv1_out_size);
+
+    relu(conv1_out, conv1_out_size);
+
+    // check this
+    // https://github.com/euske/nn1/blob/master/cnn.c
+    int conv1_out_height = 26;
+    int conv1_out_width = 26;
+    int conv2_out_height = (conv1_out_height - 3 + 1);
+    int conv2_out_width = (conv1_out_width - 3 + 1);
+    int conv2_out_size = conv2_out_height * conv2_out_width * 64;
+    float *conv2_out = (float *)malloc(sizeof(float) * conv2_out_size);
+    for (int i = 0; i < conv2_out_size; i++)
+        conv2_out[i] = 0.0f;
+    for (int i = 0; i < 64; i++)
+    { // conv2 out channel
+        float *filter_weights = conv2_weights + (i * 32 * 3 * 3);
+
+        for (int j = 0; j < conv2_out_height; j++)
+        { // conv2 out height
+            for (int k = 0; k < conv2_out_width; k++)
+            { // conv2 out width
+                // printf("%d\n", i * conv2_out_height * conv2_out_width +
+                //                                     j * conv2_out_width + k);
+
+                float *conv2_out_data = &(conv2_out[i * conv2_out_height * conv2_out_width +
+                                                    j * conv2_out_width + k]);
+                for (int m = 0; m < 32; m++)
+                { // conv2 in channel
+                    float *conv1_out_data = &(conv1_out[m * conv1_out_height * conv1_out_width +
+                                                        j * conv1_out_width + k]);
+                    for (int n = 0; n < 3; n++)
+                    { // kernel height
+                        for (int p = 0; p < 3; p++)
+                        { // kernel width
+                            *conv2_out_data += conv1_out_data[n * 3 + p] * filter_weights[m * 3 * 3 + n * 3 + p];
+                        }
+                    }
+                }
+                *conv2_out_data += conv2_bias[i];
+            }
+        }
+    }
+    save_buffer_to_bin_file("log/conv2_out.bin", conv2_out, conv2_out_size);
+
+    for (size_t i = 0; i < 100; i++)
+    {
+        printf("%f\n", conv2_out[i]);
+    }
 
     free_image_data(image_data, height);
+    free(conv1_weights);
+    free(conv1_bias);
+    free(conv2_weights);
+    free(conv2_bias);
+    free(fc1_weights);
+    free(fc1_bias);
+    free(fc2_weights);
+    free(fc2_bias);
+    free(conv1_out);
+    free(conv2_out);
     return 0;
 }

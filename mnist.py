@@ -26,25 +26,3 @@ class Net(nn.Module):
         x = self.fc2(x)
         output = F.log_softmax(x, dim=1)
         return output
-
-
-if __name__ == '__main__':
-    x = torch.ones(1,1,28,28)
-    weight = torch.rand(1, 1, 3, 3)
-    bias = torch.rand(1)
-    conv1 = nn.Conv2d(1, 1, kernel_size=3, stride=1)
-    conv1.weight.data = weight
-    conv1.bias.data = bias
-    y1 = conv1(x)
-    print(y1.shape)
-
-    # convolve in raw python
-    x = x.squeeze(0).squeeze(0)
-    y2 = torch.zeros(26, 26)
-    for i in range(26):
-        for j in range(26):
-            y2[i][j] = (x[i:i+3, j:j+3] * weight).sum() + bias
-    y2.unsqueeze(0).unsqueeze(0)
-
-    # check if close
-    print(torch.allclose(y1, y2))
