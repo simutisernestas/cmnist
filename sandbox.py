@@ -23,9 +23,6 @@ for i, param in enumerate(model.parameters()):
     print(param.shape, param.dtype)
     param.requires_grad = False
     param.reshape(-1).numpy().tofile(f'data/binm/{layers[i]}.bin')
-    # print(param.reshape(-1)[:10])
-    # print(param.reshape(-1).shape)
-    # print(param[0][0])
 
 image_processing = transforms.Compose([
     transforms.ToTensor(),
@@ -48,14 +45,27 @@ img = image_processing(img)
 img = img.unsqueeze(0)
 out = model.conv1(img)
 out = F.relu(out)
+for i in range(32):
+    print(out[:, i, :3, :10])
+# int src_base = m * conv1_out_height * conv1_out_width + j * conv1_out_width + k;
+
+# 3 + 3*26 + 26
+print('conv1 out:', out.shape)
 out = model.conv2(out)
-for p in out.reshape(-1)[:100].tolist():
+print('conv2 out:', out.shape)
+for p in out.reshape(-1)[:10].tolist():
     print(p)
 # print(out.shape)
+print("conv2 weights")
 print(model.conv2.weight.shape)
-# print(model.conv1.weight.shape)
-
-
+# for w in model.conv2.weight.reshape(-1)[:10].tolist():
+#     print(w)
+for b in model.conv2.bias.reshape(-1)[:10].tolist():
+    print(b)
+print(model.conv2.bias.shape)
+print("conv1 weights")
+print(model.conv1.weight.shape)
+print(model.conv1.bias.shape)
 
 # output = model(img)
 # output = postprocess(output)

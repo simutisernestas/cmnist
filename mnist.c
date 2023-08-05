@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <png.h>
+#include <assert.h>
 
 #define IMAGE_SIZE 28
 
@@ -141,6 +142,8 @@ int main()
     float *conv2_bias = (float *)malloc(sizeof(float) * conv2_bn);
     read_in_bin_file("data/binm/conv2.bin", conv2_weights, conv2_wn);
     read_in_bin_file("data/binm/conv2_bias.bin", conv2_bias, conv2_bn);
+    // for (size_t i = 0; i < 10; i++)
+    //     printf("%f\n", conv2_weights[i]);
 
     // self.fc1 = nn.Linear(9216, 128)
     int fc1_wn = 9216 * 128;
@@ -189,48 +192,78 @@ int main()
 
     relu(conv1_out, conv1_out_size);
 
+    save_buffer_to_bin_file("log/conv1_relu_out.bin", conv1_out, conv1_out_size);
+
+
     // check this
     // https://github.com/euske/nn1/blob/master/cnn.c
     int conv1_out_height = 26;
     int conv1_out_width = 26;
+
+    int src_base = 2 * conv1_out_height * conv1_out_width + 2 * conv1_out_width + 9;
+    printf("src_base: %d\n", src_base);
+    printf("src: %f\n", conv1_out[src_base]);
+    
+    // for (int i = 0; i < conv1_out_size; i++)
+    // {
+    //     printf("%f\n", conv1_out[i]);
+    // }
+    
+    // exit(0);
+
     int conv2_out_height = (conv1_out_height - 3 + 1);
     int conv2_out_width = (conv1_out_width - 3 + 1);
     int conv2_out_size = conv2_out_height * conv2_out_width * 64;
     float *conv2_out = (float *)malloc(sizeof(float) * conv2_out_size);
     for (int i = 0; i < conv2_out_size; i++)
         conv2_out[i] = 0.0f;
+    int idx = 0;
     for (int i = 0; i < 64; i++)
-    { // conv2 out channel
-        float *filter_weights = conv2_weights + (i * 32 * 3 * 3);
-
+    { // dst channel
+        int weight_base = i * 32 * 3 * 3;
         for (int j = 0; j < conv2_out_height; j++)
         { // conv2 out height
             for (int k = 0; k < conv2_out_width; k++)
             { // conv2 out width
-                // printf("%d\n", i * conv2_out_height * conv2_out_width +
-                //                                     j * conv2_out_width + k);
-
-                float *conv2_out_data = &(conv2_out[i * conv2_out_height * conv2_out_width +
-                                                    j * conv2_out_width + k]);
                 for (int m = 0; m < 32; m++)
                 { // conv2 in channel
-                    float *conv1_out_data = &(conv1_out[m * conv1_out_height * conv1_out_width +
-                                                        j * conv1_out_width + k]);
+                    // float *conv1_out_data = &(conv1_out[m * conv1_out_height * conv1_out_width +
+                    //                                     j * conv1_out_width + k]);
+                    int src_base = m * conv1_out_height * conv1_out_width + j * conv1_out_width + k;
+                    int weight_base_inner = weight_base + m * 3 * 3;
                     for (int n = 0; n < 3; n++)
                     { // kernel height
                         for (int p = 0; p < 3; p++)
                         { // kernel width
-                            *conv2_out_data += conv1_out_data[n * 3 + p] * filter_weights[m * 3 * 3 + n * 3 + p];
+                            // conv2_out[i*24*24+j*24+k] += conv1_out[src_base + n * 3 + p] * conv2_weights[weight_base_inner + n * 3 + p];
+                            conv2_out[idx] += conv1_out[src_base + n * conv1_out_width + p] * conv2_weights[weight_base_inner + n * 3 + p];
+                            // printf("conv1_out idx: %d\n", src_base + n * 3 + p);
+                            // if (conv1_out[src_base + n * 3 + p] > 0)
+                            //     printf("%f\n", conv1_out[src_base + n * conv1_out_width + p]);
+                            // printf("conv2_weights idx: %d\n", weight_base_inner + n * 3 + p);
                         }
                     }
+                    // if (m == 2)
+                    // {
+                    //     exit(0);
+                    //     goto end;
+                    // }
                 }
-                *conv2_out_data += conv2_bias[i];
+                // conv2_out[i*24*24+j*24+k] += conv2_bias[i];
+                conv2_out[idx] += conv2_bias[i];
+                idx++;
+                // if (k == 15)
+                // {
+                //     goto end;
+                // }
             }
         }
     }
+    assert(idx == conv2_out_size);
     save_buffer_to_bin_file("log/conv2_out.bin", conv2_out, conv2_out_size);
 
-    for (size_t i = 0; i < 100; i++)
+end:
+    for (size_t i = 0; i < 10; i++)
     {
         printf("%f\n", conv2_out[i]);
     }

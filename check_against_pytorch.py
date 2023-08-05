@@ -30,10 +30,15 @@ assert np.allclose(pytorch_out, C_conv1_out, atol=1e-6)
 
 # relu
 out = F.relu(out)
+pytorch_out = out.reshape(-1).detach().numpy()
+C_relu_out = np.fromfile('log/conv1_relu_out.bin', dtype=np.float32)
+assert pytorch_out.shape == C_relu_out.shape
+assert np.allclose(pytorch_out, C_relu_out, atol=1e-6)
 
 # conv2
 out = model.conv2(out)
 pytorch_out = out.reshape(-1).detach().numpy()
 C_conv2_out = np.fromfile('log/conv2_out.bin', dtype=np.float32)
 assert pytorch_out.shape == C_conv2_out.shape
-assert np.allclose(pytorch_out, C_conv2_out, atol=1e-3)
+assert np.allclose(pytorch_out, C_conv2_out,
+                   atol=1e-3), np.linalg.norm(pytorch_out - C_conv2_out)
