@@ -17,6 +17,8 @@ model = Net()
 model.load_state_dict(torch.load('data/mnist_cnn.pt'))
 model.eval()
 
+torch.set_num_threads(1)
+
 layers = ["conv1", "conv1_bias", "conv2",
           "conv2_bias", "fc1", "fc1_bias", "fc2", "fc2_bias"]
 for i, param in enumerate(model.parameters()):
@@ -43,6 +45,14 @@ for i in range(img.shape[0]):
 # inference
 img = image_processing(img)
 img = img.unsqueeze(0)
+
+import time
+start = time.time()
+model(img)
+end = time.time()
+print("time:", end - start)
+exit()
+
 out = model.conv1(img)
 out = F.relu(out)
 for i in range(32):
