@@ -48,9 +48,10 @@ img = img.unsqueeze(0)
 
 import time
 start = time.time()
-model(img)
+for i in range(1000):
+    model(img)
 end = time.time()
-print("time:", end - start)
+print("time:", (end - start)/1000)
 exit()
 
 out = model.conv1(img)

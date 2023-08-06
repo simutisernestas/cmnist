@@ -3,6 +3,7 @@
 #include <png.h>
 #include <assert.h>
 #include <math.h>
+#include <omp.h>
 
 #define IMAGE_SIZE 28
 
@@ -50,8 +51,6 @@ png_byte **read_png_file(const char *file_name, int *width, int *height)
 
     *width = png_get_image_width(png_ptr, info_ptr);
     *height = png_get_image_height(png_ptr, info_ptr);
-    png_byte color_type = png_get_color_type(png_ptr, info_ptr);
-    png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 
     // Allocate memory for the pixel data
     png_byte **image_data = (png_byte **)malloc(sizeof(png_byte *) * (*height));
@@ -85,7 +84,12 @@ void read_in_bin_file(const char *file_name, float *data, int size)
         return;
     }
 
-    fread(data, sizeof(int), size, fp);
+    int err = fread(data, sizeof(float), size, fp);
+    if (err != size)
+    {
+        fprintf(stderr, "Error: Couldn't read the bin file: %s\n", file_name);
+        return;
+    }
     fclose(fp);
 }
 
@@ -98,7 +102,7 @@ void save_buffer_to_bin_file(const char *file_name, float *data, int size)
         return;
     }
 
-    fwrite(data, sizeof(int), size, fp);
+    fwrite(data, sizeof(float), size, fp);
     fclose(fp);
 }
 
@@ -215,6 +219,7 @@ int main()
 
     clock_t begin = clock();
 
+    // printf("Hello from process: %d\n", omp_get_thread_num());
     for (int i = 0; i < 32; i++)
     { // conv1 out channel
         float *filter_weights = conv1_weights + (i * 3 * 3);
