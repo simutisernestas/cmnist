@@ -49,7 +49,8 @@ img = img.unsqueeze(0)
 import time
 start = time.time()
 for i in range(1000):
-    model(img)
+    out = model(img)
+    postprocess(out)
 end = time.time()
 print("time:", (end - start)/1000)
 exit()

@@ -8,9 +8,7 @@
 #define IMAGE_SIZE 28
 
 #define max(a, b) \
-    ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
+    __extension__({ typeof (a) _a = (a), _b = (b); _a > _b ? _a : _b; })
 
 png_byte **read_png_file(const char *file_name, int *width, int *height)
 {
@@ -108,31 +106,10 @@ void save_buffer_to_bin_file(const char *file_name, float *data, int size)
 
 void relu(float *data, int size)
 {
-    for (size_t i = 0; i < size; i++)
+    for (int i = 0; i < size; i++)
     {
         if (data[i] < 0)
             data[i] = 0;
-    }
-}
-
-void softmax(float *data, int size)
-{
-    float max = data[0];
-    for (size_t i = 1; i < size; i++)
-    {
-        max = max(max, data[i]);
-    }
-
-    float sum = 0;
-    for (size_t i = 0; i < size; i++)
-    {
-        data[i] = exp(data[i] - max);
-        sum += data[i];
-    }
-
-    for (size_t i = 0; i < size; i++)
-    {
-        data[i] /= sum;
     }
 }
 
@@ -219,111 +196,132 @@ int main()
 
     clock_t begin = clock();
 
-    // printf("Hello from process: %d\n", omp_get_thread_num());
-    for (int i = 0; i < 32; i++)
-    { // conv1 out channel
-        float *filter_weights = conv1_weights + (i * 3 * 3);
-        for (int j = 0; j < height - 3 + 1; j++)
-        { // conv1 out height
-            for (int k = 0; k < width - 3 + 1; k++)
-            { // conv1 out width
-                float *conv1_out_data = &(conv1_out[i * (height - 3 + 1) * (width - 3 + 1) +
-                                                    j * (width - 3 + 1) + k]);
-                for (int m = 0; m < 3; m++)
-                { // conv1 in height
-                    for (int n = 0; n < 3; n++)
-                    { // conv1 in width
-                        *conv1_out_data +=
-                            (((float)image_data[j + m][k + n] / 255 - 0.1307) / 0.3081) * filter_weights[m * 3 + n];
-                    }
-                }
-                *conv1_out_data += conv1_bias[i];
-            }
-        }
-    }
-
-    save_buffer_to_bin_file("log/conv1_out.bin", conv1_out, conv1_out_size);
-
-    relu(conv1_out, conv1_out_size);
-
-    save_buffer_to_bin_file("log/conv1_relu_out.bin", conv1_out, conv1_out_size);
-
-    int idx = 0;
-    for (int i = 0; i < 64; i++)
-    { // dst channel
-        int weight_base = i * 32 * 3 * 3;
-        for (int j = 0; j < conv2_out_height; j++)
-        { // conv2 out height
-            for (int k = 0; k < conv2_out_width; k++)
-            { // conv2 out width
-                for (int m = 0; m < 32; m++)
-                { // conv2 in channel
-                    int src_base = m * conv1_out_height * conv1_out_width + j * conv1_out_width + k;
-                    int weight_base_inner = weight_base + m * 3 * 3;
-                    for (int n = 0; n < 3; n++)
-                    { // kernel height
-                        for (int p = 0; p < 3; p++)
-                        { // kernel width
-                            conv2_out[idx] += conv1_out[src_base + n * conv1_out_width + p] * conv2_weights[weight_base_inner + n * 3 + p];
+#ifndef TESTOUT
+    for (size_t i = 0; i < 1000; i++)
+    {
+#endif
+        for (int i = 0; i < 32; i++)
+        { // conv1 out channel
+            float *filter_weights = conv1_weights + (i * 3 * 3);
+            for (int j = 0; j < height - 3 + 1; j++)
+            { // conv1 out height
+                for (int k = 0; k < width - 3 + 1; k++)
+                { // conv1 out width
+                    float *conv1_out_data = &(conv1_out[i * (height - 3 + 1) * (width - 3 + 1) +
+                                                        j * (width - 3 + 1) + k]);
+                    for (int m = 0; m < 3; m++)
+                    { // conv1 in height
+                        for (int n = 0; n < 3; n++)
+                        { // conv1 in width
+                            *conv1_out_data +=
+                                (((float)image_data[j + m][k + n] / 255 - 0.1307) / 0.3081) * filter_weights[m * 3 + n];
                         }
                     }
+                    *conv1_out_data += conv1_bias[i];
                 }
-                conv2_out[idx] += conv2_bias[i];
-                idx++;
             }
         }
-    }
-    assert(idx == conv2_out_size);
-    save_buffer_to_bin_file("log/conv2_out.bin", conv2_out, conv2_out_size);
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/conv1_out.bin", conv1_out, conv1_out_size);
+#endif
 
-    for (int i = 0; i < 64; i++)
-    { // dst channel
-        for (int j = 0; j < pool2_out_height; j++)
-        { // pool2 out height
-            for (int k = 0; k < pool2_out_width; k++)
-            { // pool2 out width
-                int src_base = i * conv2_out_height * conv2_out_width + j * 2 * conv2_out_width + k * 2;
-                float max_val = conv2_out[src_base];
-                for (int m = 0; m < 2; m++)
-                { // pool2 in height
-                    for (int n = 0; n < 2; n++)
-                    { // pool2 in width
-                        max_val = max(max_val, conv2_out[src_base + m * conv2_out_width + n]);
+        relu(conv1_out, conv1_out_size);
+
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/conv1_relu_out.bin", conv1_out, conv1_out_size);
+#endif
+
+        int idx = 0;
+        for (int i = 0; i < 64; i++)
+        { // dst channel
+            int weight_base = i * 32 * 3 * 3;
+            for (int j = 0; j < conv2_out_height; j++)
+            { // conv2 out height
+                for (int k = 0; k < conv2_out_width; k++)
+                { // conv2 out width
+                    for (int m = 0; m < 32; m++)
+                    { // conv2 in channel
+                        int src_base = m * conv1_out_height * conv1_out_width + j * conv1_out_width + k;
+                        int weight_base_inner = weight_base + m * 3 * 3;
+                        for (int n = 0; n < 3; n++)
+                        { // kernel height
+                            for (int p = 0; p < 3; p++)
+                            { // kernel width
+                                conv2_out[idx] += conv1_out[src_base + n * conv1_out_width + p] * conv2_weights[weight_base_inner + n * 3 + p];
+                            }
+                        }
                     }
+                    conv2_out[idx] += conv2_bias[i];
+                    idx++;
                 }
-                pool2_out[i * pool2_out_height * pool2_out_width + j * pool2_out_width + k] = max_val;
             }
         }
-    }
-    save_buffer_to_bin_file("log/max_pool2d_out.bin", pool2_out, pool2_out_size);
+        assert(idx == conv2_out_size);
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/conv2_out.bin", conv2_out, conv2_out_size);
+#endif
 
-    for (int i = 0; i < fc1_out_size; i++)
-    { // dst channel
-        for (int j = 0; j < pool2_out_size; j++)
-        { // src channel
-            fc1_out[i] += pool2_out[j] * fc1_weights[i * pool2_out_size + j];
+        for (int i = 0; i < 64; i++)
+        { // dst channel
+            for (int j = 0; j < pool2_out_height; j++)
+            { // pool2 out height
+                for (int k = 0; k < pool2_out_width; k++)
+                { // pool2 out width
+                    int src_base = i * conv2_out_height * conv2_out_width + j * 2 * conv2_out_width + k * 2;
+                    float max_val = conv2_out[src_base];
+                    for (int m = 0; m < 2; m++)
+                    { // pool2 in height
+                        for (int n = 0; n < 2; n++)
+                        { // pool2 in width
+                            max_val = max(max_val, conv2_out[src_base + m * conv2_out_width + n]);
+                        }
+                    }
+                    pool2_out[i * pool2_out_height * pool2_out_width + j * pool2_out_width + k] = max_val;
+                }
+            }
         }
-        fc1_out[i] += fc1_bias[i];
-    }
-    save_buffer_to_bin_file("log/fc1_out.bin", fc1_out, fc1_out_size);
 
-    relu(fc1_out, fc1_out_size);
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/max_pool2d_out.bin", pool2_out, pool2_out_size);
+#endif
 
-    save_buffer_to_bin_file("log/fc1_relu_out.bin", fc1_out, fc1_out_size);
-
-    for (int i = 0; i < fc2_out_size; i++)
-    { // dst channel
-        for (int j = 0; j < fc1_out_size; j++)
-        { // src channel
-            fc2_out[i] += fc1_out[j] * fc2_weights[i * fc1_out_size + j];
+        for (int i = 0; i < fc1_out_size; i++)
+        { // dst channel
+            for (int j = 0; j < pool2_out_size; j++)
+            { // src channel
+                fc1_out[i] += pool2_out[j] * fc1_weights[i * pool2_out_size + j];
+            }
+            fc1_out[i] += fc1_bias[i];
         }
-        fc2_out[i] += fc2_bias[i];
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/fc1_out.bin", fc1_out, fc1_out_size);
+#endif
+        relu(fc1_out, fc1_out_size);
+
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/fc1_relu_out.bin", fc1_out, fc1_out_size);
+#endif
+
+        for (int i = 0; i < fc2_out_size; i++)
+        { // dst channel
+            for (int j = 0; j < fc1_out_size; j++)
+            { // src channel
+                fc2_out[i] += fc1_out[j] * fc2_weights[i * fc1_out_size + j];
+            }
+            fc2_out[i] += fc2_bias[i];
+        }
+
+#ifdef TESTOUT
+        save_buffer_to_bin_file("log/fc2_out.bin", fc2_out, fc2_out_size);
+#endif
+
+#ifndef TESTOUT
     }
-    save_buffer_to_bin_file("log/fc2_out.bin", fc2_out, fc2_out_size);
+#endif
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    printf("Time spent: %f\n", time_spent);
+    printf("Time spent: %f\n", time_spent / 1000);
 
     // print out the result
     int max_idx = 0;
