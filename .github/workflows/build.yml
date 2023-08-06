@@ -8,13 +8,12 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
+    - name : Install Python dependencies
+      run: pip install -r requirements.txt
     - name: make
       run: make
     - name: make test
       run: make test
-      
