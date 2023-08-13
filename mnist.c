@@ -3,7 +3,6 @@
 #include <png.h>
 #include <assert.h>
 #include <math.h>
-#include <omp.h>
 
 #define IMAGE_SIZE 28
 

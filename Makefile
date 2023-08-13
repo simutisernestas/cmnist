@@ -1,5 +1,5 @@
 run:
-	gcc-12 mnist.c -o mnist -lpng -lm -Ofast -Wall -Wextra -pedantic && ./mnist
+	gcc-12 mnist.c -o mnist -lpng -lm -Ofast -Wall -Wextra -pedantic -fopenmp -funroll-all-loops -march=native && ./mnist
 
 bprof:
 	gcc -ggdb3 -Ofast -Wall -Wextra -pedantic -o mnist mnist.c -lpng -lm -DTESTOUT
